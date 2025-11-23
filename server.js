@@ -1,4 +1,3 @@
-// Install dependencies: npm install ws express
 const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
@@ -7,11 +6,9 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Store all connected players
 const players = {};
 const chatHistory = [];
 
-// Broadcast to all connected clients
 function broadcast(data) {
     wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
@@ -24,11 +21,10 @@ wss.on('connection', (ws) => {
     console.log('New player connected');
     let playerId = null;
 
-    // Send existing players and chat history to new player
     ws.send(JSON.stringify({
         type: 'init',
         players: players,
-        chatHistory: chatHistory.slice(-50) // Last 50 messages
+        chatHistory: chatHistory.slice(-50)
     }));
 
     ws.on('message', (message) => {
@@ -37,7 +33,6 @@ wss.on('connection', (ws) => {
 
             switch(data.type) {
                 case 'join':
-                    // New player joined
                     playerId = data.id;
                     players[playerId] = data.player;
                     broadcast({
@@ -45,11 +40,9 @@ wss.on('connection', (ws) => {
                         id: playerId,
                         player: data.player
                     });
-                    console.log(`Player ${playerId} joined`);
                     break;
 
                 case 'update':
-                    // Player position/state update
                     if (playerId && players[playerId]) {
                         players[playerId] = { ...players[playerId], ...data.player };
                         broadcast({
@@ -61,7 +54,6 @@ wss.on('connection', (ws) => {
                     break;
 
                 case 'chat':
-                    // Chat message
                     const chatMsg = {
                         type: 'chat',
                         author: data.author,
@@ -71,19 +63,18 @@ wss.on('connection', (ws) => {
                     };
                     chatHistory.push(chatMsg);
                     if (chatHistory.length > 100) {
-                        chatHistory.shift(); // Keep only last 100 messages
+                        chatHistory.shift();
                     }
                     broadcast(chatMsg);
                     break;
             }
         } catch (error) {
-            console.error('Error processing message:', error);
+            console.error('Error:', error);
         }
     });
 
     ws.on('close', () => {
         if (playerId && players[playerId]) {
-            console.log(`Player ${playerId} disconnected`);
             delete players[playerId];
             broadcast({
                 type: 'playerLeft',
@@ -91,18 +82,13 @@ wss.on('connection', (ws) => {
             });
         }
     });
-
-    ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
-    });
 });
 
-// Health check endpoint
 app.get('/', (req, res) => {
-    res.send('Game server is running! Players online: ' + Object.keys(players).length);
+    res.send('Game server running! Players: ' + Object.keys(players).length);
 });
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server on port ${PORT}`);
 });
